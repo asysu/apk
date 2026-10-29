@@ -1,0 +1,88 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Check Android build tools",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"command -v flutter || true; command -v dart || true; command -v java || true; printf 'ANDROID_HOME=%s\\nANDROID_SDK_ROOT=%s\\n' \"$ANDROID_HOME\" \"$ANDROID_SDK_ROOT\"; ls -la"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check publish prerequisites",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"git status --short; git branch --show-current; git remote -v; gh auth status"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect repository workflows",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"workflow",
+				"list",
+				"--repo",
+				"asysu/apk"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect GitHub deployment settings",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"api",
+				"repos/asysu/apk/pages"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect local pending changes",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check workflow yaml syntax",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"--input-type=module",
+				"-e",
+				"import fs from 'node:fs'; import assert from 'node:assert/strict'; const p='.github/workflows/build-and-publish.yml'; const s=fs.readFileSync(p,'utf8'); for (const token of ['workflow_dispatch:','actions/deploy-pages@v4','bash scripts/build_apk.sh','npm test --prefix server']) assert(s.includes(token), `missing workflow step: ${token}`); console.log('Workflow required steps present.');"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check repo visibility",
+			"type": "shell",
+			"command": "gh repo view asysu/apk --json nameWithOwner,isPrivate,defaultBranchRef,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Commit APK site workflow",
+			"type": "shell",
+			"command": "bash -lc 'git add .github/workflows/build-and-publish.yml .gitignore README.md lib pubspec.yaml scripts server site && git diff --cached --stat && git commit -m \"Build and publish exam prep APK site\" -m \"Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>\"'",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
