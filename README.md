@@ -9,10 +9,10 @@ Flutter app for Azerbaijan grade 9 graduation-exam practice in Mathematics and E
 - Math and English topic catalog, lessons, worked examples, and practice questions.
 - After a wrong or timed-out answer, reteaching holds that topic until three consecutive micro-questions are answered correctly.
 - Topic progression is locked in order within each subject. Mistakes are saved as topics to revisit.
-- Starting a new topic offers a random review from weak topics; the backend can generate a fresh question, with a local question-bank fallback.
-- The AI tutor accepts Mathematics and English questions, offers a short Azerbaijani lesson for relevant topics, and falls back to local explanations when the service is unavailable.
+- Starting a new topic offers a random review from weak topics; Gemini can create a fresh question when a personal API key is configured, with a local question-bank fallback.
+- The AI tutor sends Mathematics and English questions directly to Gemini using an API key the student enters in the app. The key is stored in encrypted device storage (not on the app's server). Lessons include worked examples, common mistakes, and a practice question.
 - Reading and text-based listening simulation are included. Listening currently has no audio playback.
-- If the optional coach backend is unavailable, lessons and the local question bank remain available.
+- If Gemini is unavailable, its error is shown clearly; local lessons and the question bank remain available.
 
 ## Build an Android APK
 
@@ -26,25 +26,8 @@ The script generates the Android platform project if needed, builds a release AP
 
 On every push to `main`, the GitHub Actions workflow uses its run number as the Android build number, publishes a versioned APK as a GitHub Release, and deploys the site with the latest APK link. The download page is published at `https://asysu.github.io/apk/` when GitHub Pages is enabled for this repository using GitHub Actions. APK releases are available from the repository's Releases page.
 
-## Optional Gemini coach
+## Gemini AI tutor
 
-The mobile app calls a server-side coach endpoint. Never put Gemini API keys in the app, `server.mjs`, source control, or a public website: APKs and source code can be inspected. For server deployments, the backend can read three keys from an untracked `server/private-api-keys.json` file. Create it from the example and add your keys there:
+On the tutor screen, enter a personal Gemini API key created in [Google AI Studio](https://aistudio.google.com/app/apikey). The key is stored in encrypted Android device storage and is not sent to this app's server. The app sends the key and the student's prompt directly to Google's Gemini API over HTTPS to generate a response. Google handles those requests under its own terms and privacy policy; do not include personal or sensitive information in prompts. The key can be changed or deleted from the tutor screen. Google API quotas or billing limits may apply.
 
-```sh
-cp server/private-api-keys.example.json server/private-api-keys.json
-# Edit server/private-api-keys.json and fill its three keys in priority order.
-cd server
-node server.mjs
-```
-
-The private key file is ignored by Git. The server tries non-empty keys in order and does not use Gemini keys from environment variables. Do not commit the private file or share its contents. If every key or the backend fails, the app uses its local explanation and question bank. It provides `/ask` and `/teach` for the AI tutor, as well as `/coach` and `/review-question`. Set `APP_ORIGIN` to the exact public app/site origin when deploying the backend; the default wildcard is suitable only for local development.
-
-The GitHub Pages build reads the repository Actions variable `COACH_API_BASE_URL` when compiling the app. Point it at the separately deployed coach server; store Gemini keys only in that server's secret environment, never in the Pages variable.
-
-To connect a release build to the backend:
-
-```sh
-COACH_API_BASE_URL="https://your-coach.example" ./scripts/build_apk.sh
-```
-
-Any API keys shared in chat or another public place should be revoked and replaced before use.
+The tutor answers specific Mathematics and English questions, and can create a mini-lesson with worked examples, common mistakes, and a self-check exercise. If Gemini is unavailable, the app reports the error rather than showing an unrelated generated-looking answer. Existing local lessons and question banks remain available offline.

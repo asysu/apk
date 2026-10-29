@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../data/content_bank.dart';
 import '../models/study_models.dart';
 import '../services/coach_service.dart';
 
@@ -16,10 +17,31 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   final TextEditingController _questionController = TextEditingController();
   StudySubject _subject = StudySubject.mathematics;
   CoachAnswer? _answer;
-  String? _lesson;
+  CoachLesson? _lesson;
+  String? _errorMessage;
   bool _loading = false;
-  bool _localMode = false;
-  String? _localModeMessage;
+  bool _keyLoading = true;
+  bool _hasApiKey = false;
+  bool _showPracticeAnswer = false;
+  Future<void> Function()? _retryAction;
+
+  static const _mathExamples = [
+    'x² − 5x + 6 = 0 tənliyini addım-addım həll et.',
+    '√72 ifadəsini sadələşdir və niyə belə olduğunu izah et.',
+    'Üçbucağın sahəsi 24 sm², əsası 8 sm-dir. Hündürlüyü tap.',
+  ];
+
+  static const _englishExamples = [
+    'I have went to school. Cümləni düzəlt və qaydanı izah et.',
+    'Present Perfect və Past Simple fərqini iki nümunə ilə göstər.',
+    '“They clean the room” cümləsini Passive Voice-a çevir.',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadApiKey());
+  }
 
   @override
   void dispose() {
@@ -28,161 +50,283 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
     super.dispose();
   }
 
+  Future<void> _loadApiKey() async {
+    try {
+      final hasApiKey = await _coach.hasApiKey;
+      if (mounted) setState(() => _hasApiKey = hasApiKey);
+    } catch (error) {
+      debugPrint('Gemini API key status could not be read: $error');
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Açarı cihazın təhlükəsiz yaddaşından oxumaq olmadı. Tətbiqi yenidən açın.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _keyLoading = false);
+    }
+  }
+
+  Future<bool> _ensureApiKey() async {
+    if (_hasApiKey) return true;
+    await _configureApiKey();
+    return _hasApiKey;
+  }
+
+  Future<void> _configureApiKey() async {
+    final controller = TextEditingController();
+    var showKey = false;
+    try {
+      final apiKey = await showDialog<String>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, updateDialog) => AlertDialog(
+            title: const Text('Gemini API açarını qoş'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Google AI Studio-dan şəxsi API açarını yaradıb bura daxil et. '
+                    'Açar şifrəli şəkildə bu cihazda saxlanır; tətbiqin serverinə göndərilmir. '
+                    'Sual və dərs sorğuları cavab yaratmaq üçün birbaşa Google Gemini-yə gedir.',
+                  ),
+                  const SizedBox(height: 8),
+                  const SelectableText(
+                    'https://aistudio.google.com/app/apikey',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    obscureText: !showKey,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: 'Gemini API açarı',
+                      hintText: 'Açarı bura daxil et',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        tooltip: showKey ? 'Açarı gizlət' : 'Açarı göstər',
+                        onPressed: () =>
+                            updateDialog(() => showKey = !showKey),
+                        icon: Icon(
+                          showKey ? Icons.visibility_off : Icons.visibility,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Açarı başqaları ilə paylaşma. Google Gemini istifadəsi '
+                    'Google hesabının limit və şərtlərinə tabedir.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Ləğv et'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final value = controller.text.trim();
+                  if (value.isNotEmpty) Navigator.pop(context, value);
+                },
+                child: const Text('Cihazda saxla'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (apiKey == null || !mounted) return;
+      await _coach.saveApiKey(apiKey);
+      if (!mounted) return;
+      setState(() {
+        _hasApiKey = true;
+        _errorMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gemini açarı bu cihazda təhlükəsiz saxlandı.'),
+        ),
+      );
+    } catch (error) {
+      debugPrint('Gemini API key could not be saved: $error');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Açarı təhlükəsiz yaddaşda saxlamaq mümkün olmadı.';
+        });
+      }
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _removeApiKey() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Açarı silmək istəyirsən?'),
+        content: const Text(
+          'Saxlanmış Gemini API açarı bu cihazdan silinəcək.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Ləğv et'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _coach.removeApiKey();
+      if (mounted) {
+        setState(() {
+          _hasApiKey = false;
+          _answer = null;
+          _lesson = null;
+        });
+      }
+    } catch (error) {
+      debugPrint('Gemini API key could not be removed: $error');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Açarı cihazdan silmək mümkün olmadı.';
+        });
+      }
+    }
+  }
+
   Future<void> _ask() async {
     final question = _questionController.text.trim();
     if (_loading) return;
     if (question.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Əvvəlcə sualınızı yazın.')),
-      );
+      setState(() => _errorMessage = 'Əvvəlcə sualını yaz.');
       return;
     }
+    if (!await _ensureApiKey() || !mounted) return;
+
     setState(() {
       _loading = true;
       _answer = null;
       _lesson = null;
-      _localMode = false;
-      _localModeMessage = null;
+      _errorMessage = null;
+      _showPracticeAnswer = false;
+      _retryAction = _ask;
     });
     try {
       final result = await _coach.ask(subject: _subject, question: question);
       if (mounted) setState(() => _answer = result);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _localMode = true;
-        _localModeMessage = _coach.isConfigured
-            ? 'AI serverinə qoşulmaq mümkün olmadı. Hazırda yerli izahlardan '
-                'istifadə olunur.'
-            : 'Bu APK-də AI server ünvanı qurulmayıb. Hazırda yerli izahlardan '
-                'istifadə olunur.';
-        _answer = CoachAnswer(
-          lessonTopic: _localTopic(question),
-          answer: _localAnswer(question),
-        );
-      });
+    } on CoachServiceException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } catch (error) {
+      debugPrint('Gemini tutor question failed: $error');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Cavab alınmadı. İnterneti və Gemini API açarını yoxla.';
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _startLesson() async {
-    final topic = _answer?.lessonTopic ?? '';
+    final topic = _answer?.lessonTopic.trim() ?? '';
     if (topic.isEmpty || _loading) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+      _lesson = null;
+      _showPracticeAnswer = false;
+      _retryAction = _startLesson;
+    });
     try {
       final lesson = await _coach.teach(subject: _subject, topic: topic);
       if (mounted) setState(() => _lesson = lesson);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _localMode = true;
-        _localModeMessage = _coach.isConfigured
-            ? 'AI serverinə qoşulmaq mümkün olmadı. Hazırda yerli dərs '
-                'məzmunundan istifadə olunur.'
-            : 'Bu APK-də AI server ünvanı qurulmayıb. Hazırda yerli dərs '
-                'məzmunundan istifadə olunur.';
-        _lesson = _localLesson(topic);
-      });
+    } on CoachServiceException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } catch (error) {
+      debugPrint('Gemini lesson generation failed: $error');
+      if (mounted) {
+        setState(
+          () => _errorMessage = 'Dərs hazırlamaq mümkün olmadı. Yenidən sınayın.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _localTopic(String question) {
-    final lower = question.toLowerCase();
-    if (_subject == StudySubject.mathematics) {
-      if (lower.contains('kök')) return 'Kvadrat köklər';
-      if (lower.contains('diskriminant') || lower.contains('tənlik')) {
-        return 'Tənliklər və diskriminant';
-      }
-      if (lower.contains('sistem')) return 'Tənliklər sistemi';
-      if (lower.contains('üçbucaq') || lower.contains('sahə')) {
-        return 'Üçbucağın sahəsi';
-      }
-      if (lower.contains('çevrə') || lower.contains('dairə')) {
-        return 'Həndəsə: bucaqlar və çevrə';
-      }
-      return 'Müxtəsər vurma düsturları';
-    }
-    if (lower.contains('tense') || lower.contains('zaman')) {
-      return 'Tenses: əsas zamanlar';
-    }
-    if (lower.contains('passive')) return 'Passive Voice: məchul növ';
-    if (lower.contains('modal') || lower.contains('should') || lower.contains('must')) {
-      return 'Modal verbs';
-    }
-    if (lower.contains('pronoun') || lower.contains('əvəzlik')) {
-      return 'Pronouns: əvəzliklər';
-    }
-    if (lower.contains('noun') || lower.contains('isim')) {
-      return 'Nouns: cəm, sayılan və yiyəlik';
-    }
-    if (lower.contains('preposition') || lower.contains('sözönü')) {
-      return 'Prepositions & conjunctions';
-    }
-    if (lower.contains('synonym') ||
-        lower.contains('antonym') ||
-        lower.contains('vocabulary') ||
-        lower.contains('lüğət')) {
-      return 'Vocabulary: sinonimlər və antonimlər';
-    }
-    if (lower.contains('reading') || lower.contains('mətn')) {
-      return 'Reading comprehension';
-    }
-    if (lower.contains('listening') || lower.contains('dinləmə')) {
-      return 'Listening simulation';
-    }
-    return 'Adjectives & adverbs: müqayisə';
+  void _selectSubject(StudySubject subject) {
+    setState(() {
+      _subject = subject;
+      _answer = null;
+      _lesson = null;
+      _errorMessage = null;
+      _showPracticeAnswer = false;
+    });
   }
 
-  String _localAnswer(String question) {
-    final topic = _findTopic(_localTopic(question));
-    if (topic == null) {
-      return 'Sistem hazırda yerli köməkçi ilə işləyir. Sualını mövzu '
-          'dərslərindəki izah və nümunələrlə yoxlaya bilərsən.\n\nSualın: $question';
-    }
-    return 'Sistem hazırda yerli köməkçi ilə işləyir.\n\n'
-        '${topic.lesson}\n\nNümunə: ${topic.example}';
-  }
-
-  String _localLesson(String topic) {
-    final localTopic = _findTopic(topic);
-    if (localTopic == null) {
-      return '$topic\n\nƏvvəl qaydanı müəyyən et, sonra nümunədə qaydanın '
-          'hansı hissəsinin işlədiyini tap. Addımları bir-bir yaz və cavabı '
-          'əvəzində yoxla.';
-    }
-    return '${localTopic.title}\n\n${localTopic.lesson}\n\n'
-        'Nümunə: ${localTopic.example}';
-  }
-
-  StudyTopic? _findTopic(String title) {
-    for (final topic in contentBank) {
-      if (topic.title.toLowerCase() == title.toLowerCase()) return topic;
-    }
-    return null;
+  void _useExample(String example) {
+    setState(() {
+      _questionController
+        ..text = example
+        ..selection = TextSelection.collapsed(offset: example.length);
+      _answer = null;
+      _lesson = null;
+      _errorMessage = null;
+      _showPracticeAnswer = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final examples = _subject == StudySubject.mathematics
+        ? _mathExamples
+        : _englishExamples;
     return Scaffold(
-      appBar: AppBar(title: const Text('Yapay Zeka müəllim')),
+      appBar: AppBar(
+        title: const Text('Gemini müəllim'),
+        actions: [
+          IconButton(
+            tooltip: 'API açarını idarə et',
+            onPressed: _keyLoading ? null : _configureApiKey,
+            icon: const Icon(Icons.key_outlined),
+          ),
+        ],
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
         children: [
           Text(
-            'Riyaziyyat və İngilis dili haqqında sualını yaz.',
+            'Sualını yaz, addım-addım öyrən.',
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Yapay Zeka imtahan proqramına uyğun məşq və izah verir. '
-            'Dəqiq imtahan sualını '
-            'əvvəlcədən bilmək mümkün deyil; heç bir sualın çıxacağına zəmanət yoxdur.',
+          const SizedBox(height: 6),
+          Text(
+            'Riyaziyyat və İngilis dili üçün cavab, həll nümunələri və mini-dərs.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 14),
+          _ApiKeyCard(
+            loading: _keyLoading,
+            configured: _hasApiKey,
+            onConfigure: _configureApiKey,
+            onRemove: _removeApiKey,
           ),
           const SizedBox(height: 16),
           SegmentedButton<StudySubject>(
@@ -195,12 +339,29 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
               ButtonSegment(
                 value: StudySubject.english,
                 label: Text('İngilis dili'),
-                icon: Icon(Icons.translate),
+                icon: Icon(Icons.translate_rounded),
               ),
             ],
             selected: {_subject},
             onSelectionChanged: (selection) =>
-                setState(() => _subject = selection.first),
+                _selectSubject(selection.first),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Nümunələrə toxun və ya öz sualını yaz',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final example in examples)
+                ActionChip(
+                  label: Text(example),
+                  onPressed: _loading ? null : () => _useExample(example),
+                ),
+            ],
           ),
           const SizedBox(height: 14),
           TextField(
@@ -208,9 +369,12 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
             minLines: 3,
             maxLines: 6,
             textInputAction: TextInputAction.newline,
-            decoration: const InputDecoration(
-              hintText: 'Məsələn: Kvadrat tənliyi diskriminantla necə həll edim?',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: 'Sualın',
+              hintText: _subject == StudySubject.mathematics
+                  ? 'Məsələn: 2x + 5 = 13 tənliyini addım-addım həll et.'
+                  : 'Məsələn: “She go to school” cümləsində səhv nədir?',
+              border: const OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
           ),
@@ -223,53 +387,169 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.send_rounded),
-            label: Text(_loading ? 'Hazırlanır…' : 'Sual ver'),
+                : const Icon(Icons.auto_awesome),
+            label: Text(_loading ? 'Gemini hazırlayır…' : 'Suala cavab al'),
           ),
           if (_answer != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             _TutorCard(
-              title: 'Yapay Zeka müəllimin cavabı',
+              title: 'Sualına cavab',
               body: _answer!.answer,
+              icon: Icons.lightbulb_outline,
             ),
-            const SizedBox(height: 8),
-            if (_answer!.lessonTopic.isNotEmpty)
-              _TutorCard(
-                title: 'Bu mövzuda sənə dərs keçim?',
-                body: 'Mövzu: ${_answer!.lessonTopic}',
-                footer: Row(
-                  children: [
-                    FilledButton(
-                      onPressed: _loading ? null : _startLesson,
-                      child: const Text('Bəli, dərs keç'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() => _answer = null),
-                      child: const Text('İndi yox'),
-                    ),
-                  ],
-                ),
-              )
-            else
-              TextButton(
-                onPressed: () => setState(() => _answer = null),
-                child: const Text('Yeni sual ver'),
+            if (_answer!.lessonTopic.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                onPressed: _loading ? null : _startLesson,
+                icon: const Icon(Icons.menu_book_outlined),
+                label: Text('“${_answer!.lessonTopic}” mövzusunu öyrən'),
               ),
+            ],
           ],
           if (_lesson != null) ...[
-            const SizedBox(height: 8),
-            _TutorCard(title: 'Qısa dərs', body: _lesson!),
-          ],
-          if (_localMode) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 18),
             _TutorCard(
-              title: 'Yerli köməkçi',
-              body: _localModeMessage ??
-                  'Hazırda yerli izahlardan istifadə olunur.',
+              title: _lesson!.title,
+              body: _lesson!.explanation,
+              icon: Icons.menu_book_outlined,
+            ),
+            for (var index = 0; index < _lesson!.examples.length; index++) ...[
+              const SizedBox(height: 10),
+              _TutorCard(
+                title: 'Nümunə ${index + 1}',
+                body: _lesson!.examples[index],
+                icon: Icons.calculate_outlined,
+              ),
+            ],
+            const SizedBox(height: 10),
+            _TutorCard(
+              title: 'Diqqət: yayğın səhv',
+              body: _lesson!.commonMistake,
+              icon: Icons.warning_amber_outlined,
+            ),
+            const SizedBox(height: 10),
+            _TutorCard(
+              title: 'Özünü yoxla',
+              body: _lesson!.practiceQuestion,
+              icon: Icons.quiz_outlined,
+              footer: OutlinedButton(
+                onPressed: () => setState(
+                  () => _showPracticeAnswer = !_showPracticeAnswer,
+                ),
+                child: Text(
+                  _showPracticeAnswer ? 'Cavabı gizlət' : 'Cavabı göstər',
+                ),
+              ),
+            ),
+            if (_showPracticeAnswer) ...[
+              const SizedBox(height: 8),
+              _TutorCard(
+                title: 'Məşqin cavabı',
+                body: _lesson!.practiceAnswer,
+                icon: Icons.check_circle_outline,
+              ),
+            ],
+          ],
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 14),
+            _TutorCard(
+              title: 'Cavab alınmadı',
+              body: _errorMessage!,
+              icon: Icons.error_outline,
+              footer: TextButton.icon(
+                onPressed: _loading ? null : () => (_retryAction ?? _ask)(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Yenidən yoxla'),
+              ),
             ),
           ],
+          const SizedBox(height: 16),
+          Text(
+            'Sorğu birbaşa Google Gemini-yə göndərilir. Şəxsi məlumat və parol yazma.',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ApiKeyCard extends StatelessWidget {
+  const _ApiKeyCard({
+    required this.loading,
+    required this.configured,
+    required this.onConfigure,
+    required this.onRemove,
+  });
+
+  final bool loading;
+  final bool configured;
+  final VoidCallback onConfigure;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(
+              configured ? Icons.verified_user_outlined : Icons.key_outlined,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loading
+                        ? 'Açar yoxlanılır…'
+                        : configured
+                            ? 'Gemini açarı cihazda saxlanıb'
+                            : 'Gemini açarı lazımdır',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  Text(
+                    'Açar şifrəli cihaz yaddaşındadır',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            if (loading)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else if (!configured)
+              FilledButton.tonal(
+                onPressed: onConfigure,
+                child: const Text('Açarı daxil et'),
+              )
+            else
+              PopupMenuButton<String>(
+                tooltip: 'Açar parametrləri',
+                onSelected: (value) =>
+                    value == 'remove' ? onRemove() : onConfigure(),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'configure',
+                    child: Text('Açarı dəyiş'),
+                  ),
+                  if (configured)
+                    const PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Açarı sil'),
+                    ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -279,11 +559,13 @@ class _TutorCard extends StatelessWidget {
   const _TutorCard({
     required this.title,
     required this.body,
+    required this.icon,
     this.footer,
   });
 
   final String title;
   final String body;
+  final IconData icon;
   final Widget? footer;
 
   @override
@@ -293,11 +575,25 @@ class _TutorCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text(body),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SelectableText(body),
               if (footer != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 footer!,
               ],
             ],

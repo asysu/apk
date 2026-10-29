@@ -33,9 +33,14 @@ jobs:
       - name: Test coach service
         run: npm test --prefix server
 
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Test Flutter app
+        run: flutter test
+
       - name: Build Android APK
         env:
-          COACH_API_BASE_URL: ${{ vars.COACH_API_BASE_URL }}
           APP_BUILD_NUMBER: ${{ github.run_number }}
         run: bash scripts/build_apk.sh
 
