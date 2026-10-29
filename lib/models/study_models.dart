@@ -39,6 +39,7 @@ class StudyTopic {
 class ProgressSnapshot {
   ProgressSnapshot({
     this.studentName = '',
+    this.legalConsentAccepted = false,
     this.lastTopicId,
     this.darkModeEnabled = false,
     this.totalAnswered = 0,
@@ -49,6 +50,7 @@ class ProgressSnapshot {
         weakTopicIds = weakTopicIds ?? <String>{};
 
   String studentName;
+  bool legalConsentAccepted;
   String? lastTopicId;
   bool darkModeEnabled;
   int totalAnswered;
@@ -58,6 +60,7 @@ class ProgressSnapshot {
 
   Map<String, Object?> toJson() => {
         'studentName': studentName,
+        'legalConsentAccepted': legalConsentAccepted,
         'lastTopicId': lastTopicId,
         'darkModeEnabled': darkModeEnabled,
         'totalAnswered': totalAnswered,
@@ -69,6 +72,7 @@ class ProgressSnapshot {
   factory ProgressSnapshot.fromJson(Map<String, dynamic> json) {
     return ProgressSnapshot(
       studentName: json['studentName'] as String? ?? '',
+      legalConsentAccepted: json['legalConsentAccepted'] as bool? ?? false,
       lastTopicId: json['lastTopicId'] as String?,
       darkModeEnabled: json['darkModeEnabled'] as bool? ?? false,
       totalAnswered: json['totalAnswered'] as int? ?? 0,

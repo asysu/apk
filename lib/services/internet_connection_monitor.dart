@@ -11,12 +11,15 @@ class InternetConnectionMonitor {
   })  : _connectivity = connectivity ?? Connectivity(),
         _client = client ?? http.Client();
 
-  static final _probeUri =
-      Uri.parse('https://connectivitycheck.gstatic.com/generate_204');
+  static final _probeUris = [
+    Uri.parse('https://connectivitycheck.gstatic.com/generate_204'),
+    Uri.parse('https://www.google.com/generate_204'),
+    Uri.parse('https://cp.cloudflare.com/generate_204'),
+  ];
 
   final Connectivity _connectivity;
   final http.Client _client;
-  final ValueNotifier<bool> isOnline = ValueNotifier(false);
+  final ValueNotifier<bool?> isOnline = ValueNotifier(null);
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _retryTimer;
   bool _checking = false;
@@ -28,7 +31,7 @@ class InternetConnectionMonitor {
       (_) => unawaited(check()),
       onError: (Object error) {
         debugPrint('Network state monitoring failed: $error');
-        _setOnline(false);
+        unawaited(check());
       },
     );
     _retryTimer = Timer.periodic(
@@ -44,22 +47,37 @@ class InternetConnectionMonitor {
     try {
       final connections = await _connectivity.checkConnectivity();
       if (_disposed) return;
-      if (connections.contains(ConnectivityResult.none)) {
+      if (connections.isEmpty ||
+          connections.every((connection) => connection == ConnectivityResult.none)) {
         _setOnline(false);
         return;
       }
 
-      final response = await _client
-          .get(_probeUri, headers: const {'cache-control': 'no-cache'})
-          .timeout(const Duration(seconds: 2));
-      _setOnline(response.statusCode == 204);
+      final probeResults = await Future.wait(
+        _probeUris.map(_probeInternet),
+      );
+      _setOnline(probeResults.any((isReachable) => isReachable));
     } on Object catch (error) {
-      if (isOnline.value) {
+      if (isOnline.value == true) {
         debugPrint('Internet connectivity check failed: $error');
       }
       _setOnline(false);
     } finally {
       _checking = false;
+    }
+  }
+
+  Future<bool> _probeInternet(Uri uri) async {
+    try {
+      final response = await _client
+          .get(uri, headers: const {'cache-control': 'no-cache'})
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode >= 200 && response.statusCode < 400;
+    } on Object catch (error) {
+      if (isOnline.value == true) {
+        debugPrint('Internet probe failed for $uri: $error');
+      }
+      return false;
     }
   }
 

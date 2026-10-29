@@ -5,6 +5,8 @@ Flutter app for Azerbaijan grade 9 graduation-exam practice in Mathematics and E
 ## App features
 
 - Azerbaijani welcome flow and locally saved student name/progress.
+- Blue onboarding links open a scrollable privacy policy and terms panel.
+- Internet access is verified with HTTP probes; the offline screen appears when no probe can reach the internet.
 - Math and English topic catalog, lessons, worked examples, and practice questions.
 - After a wrong or timed-out answer, reteaching holds that topic until three consecutive micro-questions are answered correctly.
 - Topic progression is locked in order within each subject. Mistakes are saved as topics to revisit.

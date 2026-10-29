@@ -7,6 +7,7 @@ import 'data/content_bank.dart';
 import 'models/study_models.dart';
 import 'screens/ai_tutor_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/legal_document_screen.dart';
 import 'screens/review_gate_screen.dart';
 import 'screens/study_screen.dart';
 import 'services/internet_connection_monitor.dart';
@@ -78,22 +79,31 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
           ? ThemeMode.dark
           : ThemeMode.light,
       scaffoldMessengerKey: _messengerKey,
-      builder: (context, child) => ValueListenableBuilder<bool>(
+      builder: (context, child) => ValueListenableBuilder<bool?>(
         valueListenable: _internet.isOnline,
         builder: (context, isOnline, _) => Stack(
           fit: StackFit.expand,
           children: [
             child ?? const SizedBox.shrink(),
-            if (!isOnline) const Positioned.fill(child: _OfflineScreen()),
+            if (isOnline == false)
+              Positioned.fill(
+                child: _OfflineScreen(onRetry: _internet.check),
+              ),
           ],
         ),
       ),
       home: _progress == null
           ? const _LoadingScreen()
-          : _progress!.studentName.isEmpty
+          : _progress!.studentName.isEmpty ||
+                  !_progress!.legalConsentAccepted
               ? _WelcomeScreen(
+                  initialName: _progress!.studentName,
                   onSave: (name) async {
-                    setState(() => _progress!.studentName = name.trim());
+                    setState(() {
+                      _progress!
+                        ..studentName = name.trim()
+                        ..legalConsentAccepted = true;
+                    });
                     await _saveProgress();
                   },
                 )
@@ -213,45 +223,65 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
 }
 
 class _OfflineScreen extends StatelessWidget {
-  const _OfflineScreen();
+  const _OfflineScreen({required this.onRetry});
+
+  final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.wifi_off_rounded,
-                    size: 72,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Bip Bop! İnternetiniz yoxdur',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.scaffoldBackgroundColor,
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: max(0.0, constraints.maxHeight - 40),
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.wifi_off_rounded,
+                        size: 48,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'İnternet bağlantısı yoxdur',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Wi-Fi və ya mobil interneti yoxlayın. Bağlantı '
+                        'bərpa olunanda tətbiq avtomatik açılacaq.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Yenidən yoxla'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Wi-Fi və ya mobil internetə qoşulun. İnternet bağlantısı '
-                    'bərpa olunan kimi bu ekran bağlanacaq.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  const CircularProgressIndicator(),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _LoadingScreen extends StatelessWidget {
@@ -264,8 +294,12 @@ class _LoadingScreen extends StatelessWidget {
 }
 
 class _WelcomeScreen extends StatefulWidget {
-  const _WelcomeScreen({required this.onSave});
+  const _WelcomeScreen({
+    required this.initialName,
+    required this.onSave,
+  });
 
+  final String initialName;
   final Future<void> Function(String) onSave;
 
   @override
@@ -273,7 +307,14 @@ class _WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<_WelcomeScreen> {
-  final TextEditingController _nameController = TextEditingController();
+  late final TextEditingController _nameController;
+  bool _acceptedLegalDocuments = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+  }
 
   @override
   void dispose() {
@@ -299,7 +340,7 @@ class _WelcomeScreenState extends State<_WelcomeScreen> {
                     'İmtahana inamla hazırlaş',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   const SizedBox(height: 10),
@@ -313,6 +354,7 @@ class _WelcomeScreenState extends State<_WelcomeScreen> {
                     controller: _nameController,
                     textCapitalization: TextCapitalization.words,
                     textInputAction: TextInputAction.done,
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Adınız',
                       hintText: 'Məsələn, Aysel',
@@ -321,11 +363,43 @@ class _WelcomeScreenState extends State<_WelcomeScreen> {
                     ),
                     onSubmitted: (_) => _continue(),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _acceptedLegalDocuments,
+                    onChanged: (value) => setState(
+                      () => _acceptedLegalDocuments = value ?? false,
+                    ),
+                    title: const Text(
+                      'Məxfilik siyasətini və istifadə şərtlərini oxudum, qəbul edirəm.',
+                    ),
+                    subtitle: const Text(
+                      '18 yaşdan kiçiksinizsə, valideyninizlə birlikdə oxuyun.',
+                    ),
+                  ),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: () => showLegalDocuments(context),
+                        child: const Text(
+                          'Məxfilik siyasəti · İstifadə şərtləri',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   FilledButton(
-                    onPressed: _continue,
+                    onPressed: _acceptedLegalDocuments &&
+                            _nameController.text.trim().isNotEmpty
+                        ? _continue
+                        : null,
                     child: const Padding(
-                      padding: EdgeInsets.all(14),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       child: Text('Başla'),
                     ),
                   ),
@@ -340,7 +414,8 @@ class _WelcomeScreenState extends State<_WelcomeScreen> {
 
   Future<void> _continue() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty || !_acceptedLegalDocuments) return;
     await widget.onSave(name);
   }
+
 }

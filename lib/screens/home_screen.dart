@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/study_models.dart';
+import 'legal_document_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -74,7 +75,7 @@ class HomeScreen extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -194,6 +195,16 @@ class HomeScreen extends StatelessWidget {
                 locked: _isLocked(topic),
                 onTap: () => onOpenTopic(topic),
               )),
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () => showLegalDocuments(context),
+                child: const Text('Məxfilik siyasəti · İstifadə şərtləri'),
+              ),
+            ],
+          ),
         ],
       ),
     );
