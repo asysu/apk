@@ -17,9 +17,6 @@ before(async () => {
     env: {
       ...process.env,
       PORT: String(port),
-      GEMINI_API_KEY_1: '',
-      GEMINI_API_KEY_2: '',
-      GEMINI_API_KEY_3: '',
     },
     stdio: 'ignore',
   });

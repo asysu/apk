@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import 'data/content_bank.dart';
 import 'models/study_models.dart';
-import 'screens/home_screen.dart';
 import 'screens/ai_tutor_screen.dart';
+import 'screens/home_screen.dart';
 import 'screens/review_gate_screen.dart';
 import 'screens/study_screen.dart';
+import 'services/internet_connection_monitor.dart';
 import 'services/progress_store.dart';
 
 void main() {
@@ -24,12 +26,20 @@ class ExamPrepApp extends StatefulWidget {
 
 class _ExamPrepAppState extends State<ExamPrepApp> {
   final ProgressStore _store = ProgressStore();
+  final InternetConnectionMonitor _internet = InternetConnectionMonitor();
   ProgressSnapshot? _progress;
 
   @override
   void initState() {
     super.initState();
+    unawaited(_internet.start());
     _loadProgress();
+  }
+
+  @override
+  void dispose() {
+    _internet.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProgress() async {
@@ -59,19 +69,25 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF4169E1),
-      brightness: Brightness.light,
-    );
     return MaterialApp(
       title: 'İmtahan 90+',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: colorScheme,
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      themeMode: _progress?.darkModeEnabled == true
+          ? ThemeMode.dark
+          : ThemeMode.light,
       scaffoldMessengerKey: _messengerKey,
+      builder: (context, child) => ValueListenableBuilder<bool>(
+        valueListenable: _internet.isOnline,
+        builder: (context, isOnline, _) => Stack(
+          fit: StackFit.expand,
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (!isOnline) const Positioned.fill(child: _OfflineScreen()),
+          ],
+        ),
+      ),
       home: _progress == null
           ? const _LoadingScreen()
           : _progress!.studentName.isEmpty
@@ -88,6 +104,7 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
                     setState(() => _progress!.studentName = name.trim());
                     await _saveProgress();
                   },
+                  onToggleTheme: _toggleTheme,
                   onOpenTutor: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -98,6 +115,24 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
                   onOpenTopic: (topic) => _openTopic(context, topic),
                 ),
     );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF4169E1),
+        brightness: brightness,
+      ),
+      scaffoldBackgroundColor: brightness == Brightness.light
+          ? const Color(0xFFF6F7FB)
+          : const Color(0xFF111318),
+    );
+  }
+
+  void _toggleTheme() {
+    setState(() => _progress!.darkModeEnabled = !_progress!.darkModeEnabled);
+    unawaited(_saveProgress());
   }
 
   final GlobalKey<ScaffoldMessengerState> _messengerKey =
@@ -136,7 +171,9 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
       ),
     )
         .then((passed) {
-      if (passed == true && mounted) _pushStudy(context, topic);
+      if (passed == true && mounted && context.mounted) {
+        _pushStudy(context, topic);
+      }
     });
   }
 
@@ -173,6 +210,48 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
       debugPrint('Progress save failed: $error');
     }
   }
+}
+
+class _OfflineScreen extends StatelessWidget {
+  const _OfflineScreen();
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.wifi_off_rounded,
+                    size: 72,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Bip Bop! İnternetiniz yoxdur',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Wi-Fi və ya mobil internetə qoşulun. İnternet bağlantısı '
+                    'bərpa olunan kimi bu ekran bağlanacaq.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _LoadingScreen extends StatelessWidget {

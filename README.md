@@ -27,17 +27,16 @@ On every push to `main`, the GitHub Actions workflow uses its run number as the 
 
 ## Optional Gemini coach
 
-The mobile app calls a server-side coach endpoint. Do not put Gemini API keys in the app, source control, or a public website: APK contents can be inspected. Configure the backend with server environment variables (never commit their values):
+The mobile app calls a server-side coach endpoint. Never put Gemini API keys in the app, `server.mjs`, source control, or a public website: APKs and source code can be inspected. For server deployments, the backend can read three keys from an untracked `server/private-api-keys.json` file. Create it from the example and add your keys there:
 
 ```sh
+cp server/private-api-keys.example.json server/private-api-keys.json
+# Edit server/private-api-keys.json and fill its three keys in priority order.
 cd server
-export GEMINI_API_KEY_1="..."
-export GEMINI_API_KEY_2="..."
-export GEMINI_API_KEY_3="..."
 node server.mjs
 ```
 
-The server tries configured keys in order and does not return keys to the app. If every key or the backend fails, the app uses its local explanation and question bank. It provides `/ask` and `/teach` for the AI tutor, as well as `/coach` and `/review-question`. Set `APP_ORIGIN` to the exact public app/site origin when deploying the backend; the default wildcard is suitable only for local development.
+The private key file is ignored by Git. The server tries non-empty keys in order and does not use Gemini keys from environment variables. Do not commit the private file or share its contents. If every key or the backend fails, the app uses its local explanation and question bank. It provides `/ask` and `/teach` for the AI tutor, as well as `/coach` and `/review-question`. Set `APP_ORIGIN` to the exact public app/site origin when deploying the backend; the default wildcard is suitable only for local development.
 
 The GitHub Pages build reads the repository Actions variable `COACH_API_BASE_URL` when compiling the app. Point it at the separately deployed coach server; store Gemini keys only in that server's secret environment, never in the Pages variable.
 

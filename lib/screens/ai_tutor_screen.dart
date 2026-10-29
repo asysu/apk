@@ -19,6 +19,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   String? _lesson;
   bool _loading = false;
   bool _localMode = false;
+  String? _localModeMessage;
 
   @override
   void dispose() {
@@ -29,12 +30,19 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
 
   Future<void> _ask() async {
     final question = _questionController.text.trim();
-    if (question.isEmpty || _loading) return;
+    if (_loading) return;
+    if (question.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Əvvəlcə sualınızı yazın.')),
+      );
+      return;
+    }
     setState(() {
       _loading = true;
       _answer = null;
       _lesson = null;
       _localMode = false;
+      _localModeMessage = null;
     });
     try {
       final result = await _coach.ask(subject: _subject, question: question);
@@ -43,6 +51,11 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
       if (!mounted) return;
       setState(() {
         _localMode = true;
+        _localModeMessage = _coach.isConfigured
+            ? 'AI serverinə qoşulmaq mümkün olmadı. Hazırda yerli izahlardan '
+                'istifadə olunur.'
+            : 'Bu APK-də AI server ünvanı qurulmayıb. Hazırda yerli izahlardan '
+                'istifadə olunur.';
         _answer = CoachAnswer(
           lessonTopic: _localTopic(question),
           answer: _localAnswer(question),
@@ -64,6 +77,11 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
       if (!mounted) return;
       setState(() {
         _localMode = true;
+        _localModeMessage = _coach.isConfigured
+            ? 'AI serverinə qoşulmaq mümkün olmadı. Hazırda yerli dərs '
+                'məzmunundan istifadə olunur.'
+            : 'Bu APK-də AI server ünvanı qurulmayıb. Hazırda yerli dərs '
+                'məzmunundan istifadə olunur.';
         _lesson = _localLesson(topic);
       });
     } finally {
@@ -149,7 +167,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AI müəllim')),
+      appBar: AppBar(title: const Text('Yapay Zeka müəllim')),
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
@@ -162,7 +180,8 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'AI imtahan proqramına uyğun məşq və izah verir. Dəqiq imtahan sualını '
+            'Yapay Zeka imtahan proqramına uyğun məşq və izah verir. '
+            'Dəqiq imtahan sualını '
             'əvvəlcədən bilmək mümkün deyil; heç bir sualın çıxacağına zəmanət yoxdur.',
           ),
           const SizedBox(height: 16),
@@ -209,7 +228,10 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
           ),
           if (_answer != null) ...[
             const SizedBox(height: 16),
-            _TutorCard(title: 'AI müəllimin cavabı', body: _answer!.answer),
+            _TutorCard(
+              title: 'Yapay Zeka müəllimin cavabı',
+              body: _answer!.answer,
+            ),
             const SizedBox(height: 8),
             if (_answer!.lessonTopic.isNotEmpty)
               _TutorCard(
@@ -241,10 +263,10 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
           ],
           if (_localMode) ...[
             const SizedBox(height: 8),
-            const _TutorCard(
+            _TutorCard(
               title: 'Yerli köməkçi',
-              body: 'Sistem hazırda yerli köməkçi ilə işləyir. AI serveri '
-                  'əlçatan olduqda yenidən cəhd edə bilərsən.',
+              body: _localModeMessage ??
+                  'Hazırda yerli izahlardan istifadə olunur.',
             ),
           ],
         ],

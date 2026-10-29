@@ -1,15 +1,40 @@
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 
 const port = Number(process.env.PORT ?? 8787);
 const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 const maxBodyBytes = 32 * 1024;
 const allowedReasons = new Set(['incorrect_answer', 'slow_answer']);
 const allowedSubjects = new Set(['mathematics', 'english']);
-const apiKeys = [
-  process.env.GEMINI_API_KEY_1,
-  process.env.GEMINI_API_KEY_2,
-  process.env.GEMINI_API_KEY_3,
-].filter((key) => typeof key === 'string' && key.trim().length > 0);
+
+function loadApiKeys() {
+  let fileKeys = [];
+  try {
+    const config = JSON.parse(
+      readFileSync(new URL('./private-api-keys.json', import.meta.url), 'utf8'),
+    );
+    if (
+      config === null ||
+      typeof config !== 'object' ||
+      !Array.isArray(config.keys) ||
+      config.keys.length !== 3 ||
+      config.keys.some((key) => typeof key !== 'string')
+    ) {
+      throw new Error('Expected exactly three string entries in "keys".');
+    }
+    fileKeys = config.keys;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw new Error('Could not read server/private-api-keys.json.', {
+        cause: error,
+      });
+    }
+  }
+
+  return fileKeys.filter((key) => key.trim().length > 0);
+}
+
+const apiKeys = loadApiKeys();
 
 function readJson(request) {
   return new Promise((resolve, reject) => {

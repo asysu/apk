@@ -8,6 +8,7 @@ class HomeScreen extends StatelessWidget {
     required this.topics,
     required this.onOpenTopic,
     required this.onRename,
+    required this.onToggleTheme,
     required this.onOpenTutor,
     super.key,
   });
@@ -16,6 +17,7 @@ class HomeScreen extends StatelessWidget {
   final List<StudyTopic> topics;
   final ValueChanged<StudyTopic> onOpenTopic;
   final Future<void> Function(String) onRename;
+  final VoidCallback onToggleTheme;
   final VoidCallback onOpenTutor;
 
   @override
@@ -33,11 +35,30 @@ class HomeScreen extends StatelessWidget {
       }
     }
     final resumeTopic = lastTopic;
+    StudyTopic? nextTopic;
+    for (final topic in topics) {
+      if (!_isLocked(topic) &&
+          !progress.completedTopicIds.contains(topic.id)) {
+        nextTopic = topic;
+        break;
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('İmtahan 90+'),
         actions: [
+          IconButton(
+            tooltip: progress.darkModeEnabled
+                ? 'Açıq rejimə keç'
+                : 'Tünd rejimə keç',
+            onPressed: onToggleTheme,
+            icon: Icon(
+              progress.darkModeEnabled
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
+          ),
           IconButton(
             tooltip: 'Adı dəyiş',
             onPressed: () => _editName(context),
@@ -67,12 +88,23 @@ class HomeScreen extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.auto_awesome)),
-              title: const Text('AI müəllimdən soruş'),
+              title: const Text('Yapay Zeka müəllimdən soruş'),
               subtitle: const Text('Sual ver, izah al və istəsən qısa dərs keç'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenTutor,
             ),
           ),
+          if (nextTopic != null) ...[
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: () => onOpenTopic(nextTopic!),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('İmtahana başla'),
+              ),
+            ),
+          ],
           if (resumeTopic != null) ...[
             const SizedBox(height: 14),
             Card(
@@ -127,7 +159,7 @@ class HomeScreen extends StatelessWidget {
           ],
           if (progress.weakTopicIds.isNotEmpty) ...[
             const SizedBox(height: 18),
-            _SectionTitle(
+            const _SectionTitle(
               title: 'Təkrar etməli olduğun mövzular',
               icon: Icons.replay_circle_filled_outlined,
             ),
@@ -141,7 +173,7 @@ class HomeScreen extends StatelessWidget {
                     )),
           ],
           const SizedBox(height: 18),
-          _SectionTitle(
+          const _SectionTitle(
             title: 'Riyaziyyat · Azərbaycan dilində',
             icon: Icons.calculate_outlined,
           ),
@@ -152,7 +184,7 @@ class HomeScreen extends StatelessWidget {
                 onTap: () => onOpenTopic(topic),
               )),
           const SizedBox(height: 18),
-          _SectionTitle(
+          const _SectionTitle(
             title: 'İngilis dili',
             icon: Icons.translate_rounded,
           ),

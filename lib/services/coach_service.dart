@@ -20,6 +20,8 @@ class CoachService {
   static const _baseUrl = String.fromEnvironment('COACH_API_BASE_URL');
   final http.Client _client;
 
+  bool get isConfigured => _baseUrl.isNotEmpty;
+
   Uri _endpoint(String path) {
     final baseUri = Uri.parse(_baseUrl);
     final basePath = baseUri.path.replaceFirst(RegExp(r'/$'), '');

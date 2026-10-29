@@ -40,6 +40,7 @@ class ProgressSnapshot {
   ProgressSnapshot({
     this.studentName = '',
     this.lastTopicId,
+    this.darkModeEnabled = false,
     this.totalAnswered = 0,
     this.totalCorrect = 0,
     Set<String>? completedTopicIds,
@@ -49,6 +50,7 @@ class ProgressSnapshot {
 
   String studentName;
   String? lastTopicId;
+  bool darkModeEnabled;
   int totalAnswered;
   int totalCorrect;
   final Set<String> completedTopicIds;
@@ -57,6 +59,7 @@ class ProgressSnapshot {
   Map<String, Object?> toJson() => {
         'studentName': studentName,
         'lastTopicId': lastTopicId,
+        'darkModeEnabled': darkModeEnabled,
         'totalAnswered': totalAnswered,
         'totalCorrect': totalCorrect,
         'completedTopicIds': completedTopicIds.toList(),
@@ -67,6 +70,7 @@ class ProgressSnapshot {
     return ProgressSnapshot(
       studentName: json['studentName'] as String? ?? '',
       lastTopicId: json['lastTopicId'] as String?,
+      darkModeEnabled: json['darkModeEnabled'] as bool? ?? false,
       totalAnswered: json['totalAnswered'] as int? ?? 0,
       totalCorrect: json['totalCorrect'] as int? ?? 0,
       completedTopicIds:
