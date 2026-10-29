@@ -117,13 +117,13 @@ const _privacySections = [
   ),
   _DocumentSection(
     '3. AI müəllim və internet xidmətləri',
-    'AI müəllim funksiyasından istifadə etdikdə yazdığınız sual və mövzu, '
-        'həmçinin cavab hazırlamaq üçün lazım olan dərs məzmunu tətbiqin '
-        'konfiqurasiya edilmiş serverinə və AI provayderinə (məsələn, Google '
-        'Gemini) ötürülə bilər. Bu funksiya qurulmayıbsa və ya bağlantı '
-        'yoxdursa, tətbiqin yerli dərs və sual materiallarından istifadə edə '
-        'bilərsiniz. AI sorğularına adınızı, əlaqə məlumatınızı və digər '
-        'şəxsi məlumatları daxil etməyin.',
+    'Gemini müəllimi işlətmək üçün istifadəçi öz Google Gemini API açarını '
+        'tətbiqə daxil edir. Açar cihazda şifrəli yaddaşda saxlanılır və bu '
+        'tətbiqin serverinə göndərilmir. AI sualı və dərs sorğusu cavab '
+        'yaratmaq üçün birbaşa Google Gemini xidmətinə ötürülür. Google-un '
+        'məlumat emalı öz məxfilik qaydalarına tabedir. AI istifadə etmək '
+        'istəmirsinizsə, tətbiqin yerli dərs və sual materiallarından istifadə '
+        'edə bilərsiniz. Sorğulara adınızı və şəxsi məlumatları daxil etməyin.',
   ),
   _DocumentSection(
     '4. Üçüncü tərəflərin emalı',
@@ -134,11 +134,11 @@ const _privacySections = [
   ),
   _DocumentSection(
     '5. Məlumatlara nəzarət və təhlükəsizlik',
-    'Tətbiqə yalnız göstərilməsini istədiyiniz adı yazın. Məlumatlar cihazınızda '
-        'saxlanıldığından cihazın '
-        'kilidini qorumaq və tətbiq məlumatlarını idarə etmək sizin '
-        'məsuliyyətinizdədir. Tətbiqə API açarı daxil etməyiniz tələb olunmur; '
-        'belə açarları heç vaxt ad və ya sual sahələrinə yazmayın.',
+    'Gemini API açarını yalnız tətbiqin API açarı sahəsinə daxil edin; sual '
+        'sahəsinə yazmayın. Açar cihazda şifrəli saxlanır, lakin Gemini API-yə '
+        'sorğu göndərmək üçün Google-a ötürülür. Açarınıza Google AI Studio '
+        'hesabınızdan nəzarət edin, başqaları ilə paylaşmayın və istənilən '
+        'vaxt tətbiqdən silin. Cihazın kilidini qorumaq sizin məsuliyyətinizdədir.',
   ),
   _DocumentSection(
     '6. Siyasətdə dəyişikliklər və əlaqə',

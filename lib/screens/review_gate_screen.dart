@@ -25,6 +25,7 @@ class _ReviewGateScreenState extends State<ReviewGateScreen> {
   late StudyQuestion _activeQuestion;
   int? _selectedIndex;
   bool _localAssistant = false;
+  String? _assistantMessage;
 
   @override
   void initState() {
@@ -46,8 +47,23 @@ class _ReviewGateScreenState extends State<ReviewGateScreen> {
       if (mounted && _selectedIndex == null) {
         setState(() => _activeQuestion = question);
       }
-    } catch (_) {
-      if (mounted) setState(() => _localAssistant = true);
+    } on CoachServiceException catch (error) {
+      if (mounted) {
+        setState(() {
+          _localAssistant = true;
+          _assistantMessage =
+              'Gemini sualı yarada bilmədi: ${error.message} Yerli sual göstərilir.';
+        });
+      }
+    } catch (error) {
+      debugPrint('Gemini review question generation failed: $error');
+      if (mounted) {
+        setState(() {
+          _localAssistant = true;
+          _assistantMessage =
+              'Gemini-yə qoşulmaq olmadı. Yerli sual göstərilir.';
+        });
+      }
     }
   }
 
@@ -132,7 +148,7 @@ class _ReviewGateScreenState extends State<ReviewGateScreen> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(14),
-                child: Text('Sistem hazırda yerli sual bankı ilə işləyir.'),
+                child: Text(_assistantMessage ?? 'Yerli sual bankından istifadə olunur.'),
               ),
             ),
         ],

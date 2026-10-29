@@ -89,7 +89,7 @@ class HomeScreen extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.auto_awesome)),
-              title: const Text('Yapay Zeka müəllimdən soruş'),
+              title: const Text('Gemini müəllimdən soruş'),
               subtitle: const Text('Sual ver, izah al və istəsən qısa dərs keç'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenTutor,

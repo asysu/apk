@@ -83,6 +83,7 @@ class _StudyScreenState extends State<StudyScreen> {
     String? selectedAnswer,
   }) async {
     if (_remediation || _finished) return;
+    final attemptedQuestion = _question;
     _timer?.cancel();
     if (recordAttempt) widget.onAttempt(correct: false, weak: true);
     setState(() {
@@ -90,7 +91,11 @@ class _StudyScreenState extends State<StudyScreen> {
       _microIndex = 0;
       _consecutiveCorrect = 0;
       _loadingCoach = true;
-      _coachMessage = _localExplanation(wasSlow);
+      _coachMessage = _localExplanation(
+        attemptedQuestion,
+        wasSlow: wasSlow,
+        selectedAnswer: selectedAnswer,
+      );
       _feedback = null;
       _selectedIndex = null;
     });
@@ -98,16 +103,28 @@ class _StudyScreenState extends State<StudyScreen> {
       final explanation = await _coach.explain(
         topic: widget.topic,
         wasSlow: wasSlow,
-        question: _question.prompt,
+        question: attemptedQuestion.prompt,
         selectedAnswer: selectedAnswer,
       );
       if (mounted) setState(() => _coachMessage = explanation);
-    } catch (_) {
+    } on CoachServiceException catch (error) {
+      if (!mounted) return;
+      setState(() => _localAssistant = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Gemini izahı alınmadı. Mövzunun yerli izahı göstərilir: ${error.message}',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      debugPrint('Gemini remediation explanation failed: $error');
       if (!mounted) return;
       setState(() => _localAssistant = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Sistem hazırda yerli köməkçi ilə işləyir.'),
+          content: Text('Gemini-yə qoşulmaq olmadı; yerli izah göstərilir.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -116,9 +133,21 @@ class _StudyScreenState extends State<StudyScreen> {
     }
   }
 
-  String _localExplanation(bool wasSlow) {
-    final prefix = wasSlow ? 'Vaxt apardığını gördüm. ' : 'Hatanı tapdım! ';
-    return '$prefix${widget.topic.lesson}\n\n'
+  String _localExplanation(
+    StudyQuestion question, {
+    required bool wasSlow,
+    String? selectedAnswer,
+  }) {
+    final status = wasSlow
+        ? 'Bu sualı həll etmək çətin oldu.'
+        : 'Cavabın düzgün deyil.';
+    final answerLine =
+        selectedAnswer == null ? '' : 'Sənin cavabın: $selectedAnswer\n';
+    return '$status\n\n'
+        'Sual: ${question.prompt}\n'
+        '$answerLine'
+        'İzah: ${question.explanation}\n\n'
+        'Mövzunun qaydası: ${widget.topic.lesson}\n\n'
         'Nümunə: ${widget.topic.example}';
   }
 

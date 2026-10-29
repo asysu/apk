@@ -26,16 +26,9 @@ if [[ ! "$APP_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 flutter pub get
-if [[ -n "${COACH_API_BASE_URL:-}" ]]; then
-  flutter build apk --release \
-    --build-name="$APP_VERSION" \
-    --build-number="$APP_BUILD_NUMBER" \
-    --dart-define="COACH_API_BASE_URL=${COACH_API_BASE_URL}"
-else
-  flutter build apk --release \
-    --build-name="$APP_VERSION" \
-    --build-number="$APP_BUILD_NUMBER"
-fi
+flutter build apk --release \
+  --build-name="$APP_VERSION" \
+  --build-number="$APP_BUILD_NUMBER"
 
 mkdir -p site/downloads
 VERSIONED_APK="imtahan-hazirligi-v${APP_VERSION}-build${APP_BUILD_NUMBER}.apk"
