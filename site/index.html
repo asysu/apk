@@ -36,7 +36,6 @@
       .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 13px; margin-top: 28px; }
       .button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 19px; border: 0; border-radius: 13px; background: linear-gradient(135deg, #a9bdff, #7d9cff); color: #111a33; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
       .button.secondary { border: 1px solid #536387; color: #f5f7ff; background: #182440; }
-      .button[aria-disabled="true"] { opacity: .48; cursor: not-allowed; }
       #status { min-height: 24px; margin: 14px 0 0; color: #c1cce5; font-size: .9rem; }
       .note { max-width: 570px; color: #8492b1; font-size: .82rem; line-height: 1.55; }
       .preview { position: relative; max-width: 410px; justify-self: center; width: 100%; padding: 15px; border: 1px solid #5b6d9a; border-radius: 32px; background: linear-gradient(145deg, #202f56, #161f39); box-shadow: 0 35px 100px #0007; transform: rotate(2deg); }
@@ -107,12 +106,12 @@
             izahı al, başa düşənə qədər məşq et və hazırlığını izlə.
           </p>
           <div class="actions">
-            <a class="button" id="download" href="./downloads/imtahan-hazirligi.apk" aria-disabled="true" download>
+            <a class="button" id="download" href="./downloads/imtahan-hazirligi.apk" download>
               <span aria-hidden="true">↓</span> APK-nı yüklə
             </a>
             <a class="button secondary" href="#imkanlar">Tətbiqi tanı</a>
           </div>
-          <p id="status" role="status" aria-live="polite">APK buraxılışı yoxlanılır…</p>
+          <p id="status" role="status" aria-live="polite">APK-nı yükləmək üçün düyməyə toxun.</p>
           <p class="note">90+ hədəfi motivasiya üçündür; nəticəyə zəmanət verilmir. AI mövzuları məşq üçün izah edir, real imtahan sualını əvvəlcədən proqnozlaşdırmır.</p>
         </div>
         <div class="preview" aria-label="Tətbiqin nümunə ekranı">
@@ -166,7 +165,7 @@
         <div class="faq">
           <details>
             <summary>APK-nı necə quraşdırım?</summary>
-            <p>APK-nı Android cihazına yüklə və faylı aç. Cihaz quraşdırma icazəsi istəyərsə, yalnız bu tətbiq üçün icazə ver. APK yalnız rəsmi yayımlandıqda yükləmə düyməsi aktiv olacaq.</p>
+            <p>APK-nı Android cihazına yüklə və faylı aç. Cihaz quraşdırma icazəsi istəyərsə, yalnız bu tətbiq üçün icazə ver.</p>
           </details>
           <details>
             <summary>AI dəqiq imtahan suallarını bilir?</summary>
@@ -186,9 +185,9 @@
       <section id="yukle" class="wrap cta">
         <div>
           <h2>İlk mövzudan başla.</h2>
-          <p>Android buraxılışı hazır olduqda APK-nı buradan yükləyə biləcəksən.</p>
+          <p>Android tətbiqinin son versiyasını buradan yüklə.</p>
         </div>
-        <a class="button" href="./downloads/imtahan-hazirligi.apk" aria-disabled="true" data-download download>APK-nı yüklə</a>
+        <a class="button" href="./downloads/imtahan-hazirligi.apk" data-download download>APK-nı yüklə</a>
       </section>
     </main>
 
@@ -198,18 +197,27 @@
     <script>
       const links = document.querySelectorAll('[data-download], #download');
       const status = document.querySelector('#status');
-      const apkUrl = new URL('./downloads/imtahan-hazirligi.apk', window.location.href);
-      fetch(apkUrl, { method: 'HEAD', cache: 'no-store' })
+      fetch('./downloads/latest.json', { cache: 'no-store' })
         .then((response) => {
-          if (!response.ok) throw new Error('APK not found');
+          if (!response.ok) throw new Error('Latest APK metadata is unavailable');
+          return response.json();
+        })
+        .then((release) => {
+          if (
+            typeof release.filename !== 'string' ||
+            !/^imtahan-hazirligi-v[\d.]+-build\d+\.apk$/.test(release.filename)
+          ) {
+            throw new Error('Latest APK metadata is invalid');
+          }
+          const apkUrl = new URL(`./downloads/${release.filename}`, window.location.href);
           links.forEach((link) => {
             link.setAttribute('href', apkUrl.href);
-            link.setAttribute('aria-disabled', 'false');
+            link.setAttribute('download', release.filename);
           });
-          status.textContent = 'APK hazırdır — yükləmək üçün düyməyə toxun.';
+          status.textContent = `APK hazırdır — versiya ${release.version}, quruluş ${release.buildNumber}.`;
         })
         .catch(() => {
-          status.textContent = 'APK hələ yayımlanmayıb. Buraxılış faylı yükləndikdən sonra düymə aktiv olacaq.';
+          status.textContent = 'APK-nın son versiyasını yükləmək üçün düyməyə toxun.';
         });
     </script>
   </body>

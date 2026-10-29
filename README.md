@@ -21,7 +21,9 @@ Install Flutter and the Android SDK, then run:
 bash scripts/build_apk.sh
 ```
 
-The script generates the Android platform project if needed, builds a release APK, and copies it to `site/downloads/imtahan-hazirligi.apk`. The static download page is `site/index.html`. The GitHub Pages workflow builds the release APK, places it at the download link, and publishes the site on pushes to `main` (enable GitHub Pages with GitHub Actions in repository settings). This repository does not contain a prebuilt APK or a website URL.
+The script generates the Android platform project if needed, builds a release APK, and copies both a stable download (`site/downloads/imtahan-hazirligi.apk`) and a versioned APK into `site/downloads/`. The version and Android build number can be set with `APP_BUILD_NAME` and `APP_BUILD_NUMBER`; otherwise, values from `pubspec.yaml` are used.
+
+On every push to `main`, the GitHub Actions workflow uses its run number as the Android build number, publishes a versioned APK as a GitHub Release, and deploys the site with the latest APK link. The download page is published at `https://asysu.github.io/apk/` when GitHub Pages is enabled for this repository using GitHub Actions. APK releases are available from the repository's Releases page.
 
 ## Optional Gemini coach
 
