@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -97,6 +98,116 @@ void main() {
       ),
     );
     expect(requestCount, 0);
+  });
+
+  test('validates the key with Gemini before storing it', () async {
+    final keyStore = _MemoryApiKeyStore();
+    http.Request? sentRequest;
+    final client = MockClient((request) async {
+      sentRequest = request;
+      return _geminiResponse('OK');
+    });
+    final service = CoachService(client: client, keyStore: keyStore);
+    addTearDown(service.dispose);
+
+    await service.saveApiKey('test-gemini-key');
+
+    expect(keyStore.value, 'test-gemini-key');
+    expect(sentRequest!.url.host, 'generativelanguage.googleapis.com');
+    expect(sentRequest!.headers['x-goog-api-key'], 'test-gemini-key');
+    expect(sentRequest!.body, contains('API açarını yoxlamaq'));
+  });
+
+  test('does not store an API key rejected by Gemini', () async {
+    final keyStore = _MemoryApiKeyStore();
+    final client = MockClient((_) async => http.Response('{}', 403));
+    final service = CoachService(client: client, keyStore: keyStore);
+    addTearDown(service.dispose);
+
+    await expectLater(
+      service.saveApiKey('rejected-key'),
+      throwsA(
+        isA<CoachServiceException>().having(
+          (error) => error.message,
+          'message',
+          contains('API açarı yanlışdır'),
+        ),
+      ),
+    );
+    expect(keyStore.value, isNull);
+  });
+
+  test('does not store a key when Gemini does not generate a test response', () async {
+    final keyStore = _MemoryApiKeyStore();
+    final client = MockClient(
+      (_) async => http.Response(
+        jsonEncode({'candidates': []}),
+        200,
+        headers: const {'content-type': 'application/json'},
+      ),
+    );
+    final service = CoachService(client: client, keyStore: keyStore);
+    addTearDown(service.dispose);
+
+    await expectLater(
+      service.saveApiKey('no-response-key'),
+      throwsA(
+        isA<CoachServiceException>().having(
+          (error) => error.message,
+          'message',
+          contains('cavab yarada bilmədi'),
+        ),
+      ),
+    );
+    expect(keyStore.value, isNull);
+  });
+
+  test('reports socket failures as an internet connection problem', () async {
+    final keyStore = _MemoryApiKeyStore()..value = 'test-gemini-key';
+    final client = MockClient(
+      (_) async => throw const SocketException('No route to host'),
+    );
+    final service = CoachService(client: client, keyStore: keyStore);
+    addTearDown(service.dispose);
+
+    await expectLater(
+      service.ask(
+        subject: StudySubject.english,
+        question: 'Correct this sentence.',
+      ),
+      throwsA(
+        isA<CoachServiceException>().having(
+          (error) => error.message,
+          'message',
+          contains('internet bağlantısı'),
+        ),
+      ),
+    );
+  });
+
+  test('recognizes DNS errors wrapped in an HTTP client exception', () async {
+    final keyStore = _MemoryApiKeyStore()..value = 'test-gemini-key';
+    final client = MockClient(
+      (_) async => throw http.ClientException(
+        'Failed to connect: SocketException: Failed host lookup',
+      ),
+    );
+    final service = CoachService(client: client, keyStore: keyStore);
+    addTearDown(service.dispose);
+
+    await expectLater(
+      service.ask(
+        subject: StudySubject.english,
+        question: 'Correct this sentence.',
+      ),
+      throwsA(
+        isA<CoachServiceException>().having(
+          (error) => error.message,
+          'message',
+          contains('internet bağlantısı'),
+        ),
+      ),
+    );
   });
 
   test('returns two worked examples and a self-check lesson', () async {
