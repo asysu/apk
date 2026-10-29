@@ -10,7 +10,6 @@ import 'screens/home_screen.dart';
 import 'screens/legal_document_screen.dart';
 import 'screens/review_gate_screen.dart';
 import 'screens/study_screen.dart';
-import 'services/internet_connection_monitor.dart';
 import 'services/progress_store.dart';
 
 void main() {
@@ -27,20 +26,12 @@ class ExamPrepApp extends StatefulWidget {
 
 class _ExamPrepAppState extends State<ExamPrepApp> {
   final ProgressStore _store = ProgressStore();
-  final InternetConnectionMonitor _internet = InternetConnectionMonitor();
   ProgressSnapshot? _progress;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_internet.start());
     _loadProgress();
-  }
-
-  @override
-  void dispose() {
-    _internet.dispose();
-    super.dispose();
   }
 
   Future<void> _loadProgress() async {
@@ -79,51 +70,42 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
           ? ThemeMode.dark
           : ThemeMode.light,
       scaffoldMessengerKey: _messengerKey,
-      builder: (context, child) => ValueListenableBuilder<bool?>(
-        valueListenable: _internet.isOnline,
-        builder: (context, isOnline, _) => Stack(
-          fit: StackFit.expand,
-          children: [
-            child ?? const SizedBox.shrink(),
-            if (isOnline == false)
-              Positioned.fill(
-                child: _OfflineScreen(onRetry: _internet.check),
-              ),
-          ],
-        ),
-      ),
-      home: _progress == null
-          ? const _LoadingScreen()
-          : _progress!.studentName.isEmpty ||
-                  !_progress!.legalConsentAccepted
-              ? _WelcomeScreen(
-                  initialName: _progress!.studentName,
-                  onSave: (name) async {
-                    setState(() {
-                      _progress!
-                        ..studentName = name.trim()
-                        ..legalConsentAccepted = true;
-                    });
-                    await _saveProgress();
-                  },
-                )
-              : HomeScreen(
-                  progress: _progress!,
-                  topics: contentBank,
-                  onRename: (name) async {
-                    setState(() => _progress!.studentName = name.trim());
-                    await _saveProgress();
-                  },
-                  onToggleTheme: _toggleTheme,
-                  onOpenTutor: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AiTutorScreen(),
-                      ),
-                    );
-                  },
-                  onOpenTopic: (topic) => _openTopic(context, topic),
+      home: Builder(
+        builder: (context) {
+          if (_progress == null) return const _LoadingScreen();
+          if (_progress!.studentName.isEmpty ||
+              !_progress!.legalConsentAccepted) {
+            return _WelcomeScreen(
+              initialName: _progress!.studentName,
+              onSave: (name) async {
+                setState(() {
+                  _progress!
+                    ..studentName = name.trim()
+                    ..legalConsentAccepted = true;
+                });
+                await _saveProgress();
+              },
+            );
+          }
+          return HomeScreen(
+            progress: _progress!,
+            topics: contentBank,
+            onRename: (name) async {
+              setState(() => _progress!.studentName = name.trim());
+              await _saveProgress();
+            },
+            onToggleTheme: _toggleTheme,
+            onOpenTutor: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AiTutorScreen(),
                 ),
+              );
+            },
+            onOpenTopic: (topic) => _openTopic(context, topic),
+          );
+        },
+      ),
     );
   }
 
@@ -219,68 +201,6 @@ class _ExamPrepAppState extends State<ExamPrepApp> {
       );
       debugPrint('Progress save failed: $error');
     }
-  }
-}
-
-class _OfflineScreen extends StatelessWidget {
-  const _OfflineScreen({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: max(0.0, constraints.maxHeight - 40),
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.wifi_off_rounded,
-                        size: 48,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'İnternet bağlantısı yoxdur',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Wi-Fi və ya mobil interneti yoxlayın. Bağlantı '
-                        'bərpa olunanda tətbiq avtomatik açılacaq.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: onRetry,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Yenidən yoxla'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

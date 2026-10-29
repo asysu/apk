@@ -234,7 +234,7 @@ class _StudyScreenState extends State<StudyScreen> {
               style: Theme.of(context)
                   .textTheme
                   .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800),
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
             _InfoCard(
@@ -465,7 +465,7 @@ class _CompletionCard extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                    ?.copyWith(fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),

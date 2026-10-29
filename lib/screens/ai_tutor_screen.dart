@@ -176,7 +176,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           const Text(
