@@ -145,9 +145,9 @@ class _ReviewGateScreenState extends State<ReviewGateScreen> {
               ),
           ],
           if (_localAssistant)
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(14),
+                padding: const EdgeInsets.all(14),
                 child: Text(_assistantMessage ?? 'Yerli sual bankından istifadə olunur.'),
               ),
             ),
