@@ -2,26 +2,16 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 class InternetConnectionMonitor {
-  InternetConnectionMonitor({
-    Connectivity? connectivity,
-    http.Client? client,
-  })  : _connectivity = connectivity ?? Connectivity(),
-        _client = client ?? http.Client();
-
-  static final _probeUris = [
-    Uri.parse('https://connectivitycheck.gstatic.com/generate_204'),
-    Uri.parse('https://www.google.com/generate_204'),
-    Uri.parse('https://cp.cloudflare.com/generate_204'),
-  ];
+  InternetConnectionMonitor({Connectivity? connectivity})
+      : _connectivity = connectivity ?? Connectivity();
 
   final Connectivity _connectivity;
-  final http.Client _client;
   final ValueNotifier<bool?> isOnline = ValueNotifier(null);
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _retryTimer;
+  int _consecutiveOfflineChecks = 0;
   bool _checking = false;
   bool _disposed = false;
 
@@ -47,37 +37,22 @@ class InternetConnectionMonitor {
     try {
       final connections = await _connectivity.checkConnectivity();
       if (_disposed) return;
-      if (connections.isEmpty ||
-          connections.every((connection) => connection == ConnectivityResult.none)) {
-        _setOnline(false);
+      if (connections
+          .any((connection) => connection != ConnectivityResult.none)) {
+        _consecutiveOfflineChecks = 0;
+        _setOnline(true);
         return;
       }
 
-      final probeResults = await Future.wait(
-        _probeUris.map(_probeInternet),
-      );
-      _setOnline(probeResults.any((isReachable) => isReachable));
-    } on Object catch (error) {
-      if (isOnline.value == true) {
-        debugPrint('Internet connectivity check failed: $error');
+      _consecutiveOfflineChecks++;
+      // Allow Android time to discover the network during the first launch.
+      if (_consecutiveOfflineChecks >= 2 || isOnline.value == true) {
+        _setOnline(false);
       }
-      _setOnline(false);
+    } on Object catch (error) {
+      debugPrint('Network state check failed: $error');
     } finally {
       _checking = false;
-    }
-  }
-
-  Future<bool> _probeInternet(Uri uri) async {
-    try {
-      final response = await _client
-          .get(uri, headers: const {'cache-control': 'no-cache'})
-          .timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 400;
-    } on Object catch (error) {
-      if (isOnline.value == true) {
-        debugPrint('Internet probe failed for $uri: $error');
-      }
-      return false;
     }
   }
 
@@ -89,7 +64,6 @@ class InternetConnectionMonitor {
     _disposed = true;
     _retryTimer?.cancel();
     unawaited(_subscription?.cancel());
-    _client.close();
     isOnline.dispose();
   }
 }
