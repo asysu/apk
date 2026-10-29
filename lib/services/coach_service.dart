@@ -277,8 +277,8 @@ class CoachService {
     final content = candidates is List && candidates.isNotEmpty
         ? candidates.first
         : null;
-    final parts =
-        content is Map ? (content['content'] as Map?)?['parts'] : null;
+    final nestedContent = content is Map ? content['content'] : null;
+    final parts = nestedContent is Map ? nestedContent['parts'] : null;
     final text = parts is List
         ? parts
             .where((part) => part is Map && part['text'] is String)
