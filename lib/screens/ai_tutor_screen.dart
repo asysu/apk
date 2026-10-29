@@ -76,13 +76,18 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   Future<void> _configureApiKey() async {
     final controller = TextEditingController();
     var showKey = false;
+    var savingApiKey = false;
+    String? validationError;
     try {
       final apiKey = await showDialog<String>(
         context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, updateDialog) => AlertDialog(
-            title: const Text('Gemini API açarını qoş'),
-            content: SingleChildScrollView(
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, updateDialog) => PopScope(
+            canPop: !savingApiKey,
+            child: AlertDialog(
+              title: const Text('Gemini API açarını qoş'),
+              content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +95,8 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                   const Text(
                     'Google AI Studio-dan şəxsi API açarını yaradıb bura daxil et. '
                     'Açar şifrəli şəkildə bu cihazda saxlanır; tətbiqin serverinə göndərilmir. '
-                    'Sual və dərs sorğuları cavab yaratmaq üçün birbaşa Google Gemini-yə gedir.',
+                    '“Yoxla və saxla” düyməsi Google Gemini-yə real test sorğusu göndərəcək. '
+                    'Yoxlama bitənədək bu pəncərə açıq qalacaq; uğurlu olmasa açar saxlanmayacaq.',
                   ),
                   const SizedBox(height: 8),
                   const SelectableText(
@@ -101,9 +107,12 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                   TextField(
                     controller: controller,
                     autofocus: true,
+                    readOnly: savingApiKey,
                     obscureText: !showKey,
                     autocorrect: false,
                     enableSuggestions: false,
+                    onChanged: (_) =>
+                        updateDialog(() => validationError = null),
                     decoration: InputDecoration(
                       labelText: 'Gemini API açarı',
                       hintText: 'Açarı bura daxil et',
@@ -118,6 +127,19 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                       ),
                     ),
                   ),
+                  if (savingApiKey) ...[
+                    const SizedBox(height: 14),
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 8),
+                    const Text('Gemini açarı yoxlanılır, bir az gözləyin…'),
+                  ],
+                  if (validationError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      validationError!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     'Açarı başqaları ilə paylaşma. Google Gemini istifadəsi '
@@ -127,25 +149,61 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Ləğv et'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final value = controller.text.trim();
-                  if (value.isNotEmpty) Navigator.pop(context, value);
-                },
-                child: const Text('Cihazda saxla'),
-              ),
-            ],
+              actions: [
+                TextButton(
+                  onPressed: savingApiKey
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Bağla'),
+                ),
+                FilledButton(
+                  onPressed: savingApiKey
+                      ? null
+                      : () async {
+                          final value = controller.text.trim();
+                          if (value.isEmpty) {
+                            updateDialog(
+                              () => validationError =
+                                  'Əvvəlcə API açarını daxil edin.',
+                            );
+                            return;
+                          }
+                          updateDialog(() {
+                            savingApiKey = true;
+                            validationError = null;
+                          });
+                          try {
+                            await _coach.saveApiKey(value);
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext, value);
+                            }
+                          } on CoachServiceException catch (error) {
+                            updateDialog(
+                              () => validationError = error.message,
+                            );
+                          } catch (error) {
+                            debugPrint(
+                              'Gemini API key validation failed: $error',
+                            );
+                            updateDialog(
+                              () => validationError =
+                                  'API açarını yoxlamaq alınmadı. İnterneti yoxlayıb yenidən sınayın.',
+                            );
+                          } finally {
+                            if (dialogContext.mounted) {
+                              updateDialog(() => savingApiKey = false);
+                            }
+                          }
+                        },
+                  child:
+                      Text(savingApiKey ? 'Yoxlanılır…' : 'Yoxla və saxla'),
+                ),
+              ],
+            ),
           ),
         ),
       );
       if (apiKey == null || !mounted) return;
-      await _coach.saveApiKey(apiKey);
-      if (!mounted) return;
       setState(() {
         _hasApiKey = true;
         _errorMessage = null;

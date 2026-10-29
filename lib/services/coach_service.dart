@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -92,6 +94,11 @@ class CoachService {
     if (trimmed.isEmpty) {
       throw const CoachServiceException('API açarı boş ola bilməz.');
     }
+    await _generateWithKey(
+      'API açarını yoxlamaq üçün yalnız "OK" cavabı ver.',
+      apiKey: trimmed,
+      maxOutputTokens: 16,
+    );
     await _keyStore.write(trimmed);
   }
 
@@ -328,6 +335,20 @@ class CoachService {
       );
     }
 
+    return _generateWithKey(
+      prompt,
+      apiKey: apiKey.trim(),
+      maxOutputTokens: maxOutputTokens,
+      responseMimeType: responseMimeType,
+    );
+  }
+
+  Future<Map<String, dynamic>> _generateWithKey(
+    String prompt, {
+    required String apiKey,
+    required int maxOutputTokens,
+    String? responseMimeType,
+  }) async {
     final generationConfig = <String, Object>{
       'temperature': 0.25,
       'maxOutputTokens': maxOutputTokens,
@@ -356,11 +377,32 @@ class CoachService {
           .timeout(const Duration(seconds: 45));
     } on TimeoutException {
       throw const CoachServiceException(
-        'Gemini gec cavab verdi. İnterneti yoxlayıb yenidən sınayın.',
+        'Gemini 45 saniyə ərzində cavab vermədi. İnterneti yoxlayın və yenidən sınayın.',
       );
-    } on http.ClientException {
+    } on SocketException catch (error) {
+      debugPrint('Gemini network connection failed: $error');
       throw const CoachServiceException(
-        'Gemini-yə qoşulmaq mümkün olmadı. İnterneti yoxlayın.',
+        'Gemini serverinə internet bağlantısı qurulmadı. Wi-Fi internetini yoxlayın və yenidən sınayın.',
+      );
+    } on HandshakeException catch (error) {
+      debugPrint('Gemini TLS handshake failed: $error');
+      throw const CoachServiceException(
+        'Gemini ilə təhlükəsiz bağlantı qurulmadı. Tarix və saatı, sonra interneti yoxlayın.',
+      );
+    } on http.ClientException catch (error) {
+      debugPrint('Gemini HTTP connection failed: $error');
+      final details = error.message.toLowerCase();
+      if (details.contains('socketexception') ||
+          details.contains('failed host lookup') ||
+          details.contains('network is unreachable') ||
+          details.contains('no address associated with hostname') ||
+          details.contains('connection refused')) {
+        throw const CoachServiceException(
+          'Gemini serverinə internet bağlantısı qurulmadı. Wi-Fi qoşulmasını deyil, internetə çıxışı yoxlayın və yenidən sınayın.',
+        );
+      }
+      throw const CoachServiceException(
+        'Gemini sorğusu göndərildi, lakin bağlantı cavab vermədi. İnternetə çıxışı yoxlayın və yenidən sınayın.',
       );
     }
 
@@ -369,7 +411,26 @@ class CoachService {
     }
     try {
       final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map<String, dynamic>) {
+        final candidates = decoded['candidates'];
+        final content = candidates is List && candidates.isNotEmpty
+            ? candidates.first
+            : null;
+        final nestedContent = content is Map ? content['content'] : null;
+        final parts =
+            nestedContent is Map ? nestedContent['parts'] : null;
+        final hasText = parts is List &&
+            parts.any(
+              (part) =>
+                  part is Map &&
+                  part['text'] is String &&
+                  (part['text'] as String).trim().isNotEmpty,
+            );
+        if (hasText) return decoded;
+        throw const CoachServiceException(
+          'Google Gemini sorğunu qəbul etdi, amma cavab yarada bilmədi. API limitini və açar icazələrini yoxlayın.',
+        );
+      }
     } on FormatException {
       throw const CoachServiceException(
         'Gemini xidmətindən düzgün cavab alınmadı. Bir az sonra yenidən sınayın.',
