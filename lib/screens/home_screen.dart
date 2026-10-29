@@ -62,16 +62,16 @@ class HomeScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 14),
-                Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.auto_awesome)),
-                    title: const Text('AI müəllimdən soruş'),
-                    subtitle: const Text('Sual ver, izah al və istəsən qısa dərs keç'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: onOpenTutor,
-                  ),
-                ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.auto_awesome)),
+              title: const Text('AI müəllimdən soruş'),
+              subtitle: const Text('Sual ver, izah al və istəsən qısa dərs keç'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenTutor,
+            ),
           ),
           if (resumeTopic != null) ...[
             const SizedBox(height: 14),
