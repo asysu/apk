@@ -1,0 +1,10 @@
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+android/.gradle/
+android/local.properties
+server/.env
+.env
+site/downloads/*.apk
