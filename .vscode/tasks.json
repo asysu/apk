@@ -83,6 +83,207 @@
 			"command": "bash -lc 'git add .github/workflows/build-and-publish.yml .gitignore README.md lib pubspec.yaml scripts server site && git diff --cached --stat && git commit -m \"Build and publish exam prep APK site\" -m \"Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>\"'",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Check public repo and Pages",
+			"type": "shell",
+			"command": "gh api repos/asysu/apk --jq '{private: .private, default_branch: .default_branch, html_url: .html_url}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Pages settings",
+			"type": "shell",
+			"command": "gh api repos/asysu/apk/pages",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check local git status",
+			"type": "shell",
+			"command": "git status --short",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect latest commit",
+			"type": "shell",
+			"command": "git log -1 --oneline --stat",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "List workflow runs",
+			"type": "shell",
+			"command": "gh run list --repo asysu/apk --limit 5",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect latest build run",
+			"type": "shell",
+			"command": "gh run list --repo asysu/apk --limit 5 --json databaseId,status,conclusion,workflowName,event,headBranch,headSha,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check committed project files",
+			"type": "shell",
+			"command": "git ls-tree --name-only HEAD",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch APK workflow",
+			"type": "shell",
+			"command": "gh run watch 40841252668 --repo asysu/apk --exit-status",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Read APK build failure",
+			"type": "shell",
+			"command": "gh run view 40841252668 --repo asysu/apk --log-failed",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check worktree state",
+			"type": "shell",
+			"command": "git status --short",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Review Flutter fix",
+			"type": "shell",
+			"command": "git diff -- lib/screens/home_screen.dart"
+		},
+		{
+			"label": "Commit Flutter compile fix",
+			"type": "shell",
+			"command": "bash -lc 'git add lib/screens/home_screen.dart && git commit -m \"Fix tutor card Flutter compilation\" -m \"Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>\"'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Push APK build fix",
+			"type": "shell",
+			"command": "git push origin main",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Enable GitHub Pages",
+			"type": "shell",
+			"command": "gh api --method POST repos/asysu/apk/pages -f build_type=workflow",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch rebuilt APK",
+			"type": "shell",
+			"command": "gh run list --repo asysu/apk --limit 3 --json databaseId,status,conclusion,workflowName,event,headSha,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Wait for APK workflow",
+			"type": "shell",
+			"command": "gh run watch 40842260414 --repo asysu/apk --exit-status",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check APK workflow status",
+			"type": "shell",
+			"command": "gh run view 40842260414 --repo asysu/apk --json status,conclusion,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check build job progress",
+			"type": "shell",
+			"command": "gh run view 40842260414 --repo asysu/apk --json jobs --jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, steps: [.steps[] | {name: .name, status: .status, conclusion: .conclusion}]}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check APK and Pages run",
+			"type": "shell",
+			"command": "gh run view 40842260414 --repo asysu/apk --json status,conclusion,jobs,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Wait for APK publishing",
+			"type": "shell",
+			"command": "gh run watch 40842260414 --repo asysu/apk --exit-status",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Commit Pages activation fix",
+			"type": "shell",
+			"command": "bash -lc 'git add .github/workflows/build-and-publish.yml && git commit -m \"Enable Pages deployment and retain APK artifact\" -m \"Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>\" && git push origin main'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Find latest deployment run",
+			"type": "shell",
+			"command": "gh run list --repo asysu/apk --limit 3 --json databaseId,status,conclusion,workflowName,event,headSha,url",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Wait for site and APK",
+			"type": "shell",
+			"command": "gh run watch 40842884706 --repo asysu/apk --exit-status",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check final workflow progress",
+			"type": "shell",
+			"command": "gh run view 40842884706 --repo asysu/apk --json status,conclusion,jobs,url --jq '{status, conclusion, url, jobs: [.jobs[] | {name, status, conclusion, steps: [.steps[] | {name, status, conclusion}]}]}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Wait for deployment completion",
+			"type": "shell",
+			"command": "gh run watch 40842884706 --repo asysu/apk --exit-status",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify published APK",
+			"type": "shell",
+			"command": "gh run view 40842884706 --repo asysu/apk --json status,conclusion,jobs,url --jq '{status, conclusion, url, jobs: [.jobs[] | {name, status, conclusion, steps: [.steps[] | {name, status, conclusion}]}]}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check build artifact availability",
+			"type": "shell",
+			"command": "gh run view 40842884706 --repo asysu/apk --json status,conclusion,jobs,url --jq '{status, conclusion, url, jobs: [.jobs[] | {status, conclusion, steps: [.steps[] | {name, status, conclusion}]}]}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Wait for APK build stage",
+			"type": "shell",
+			"command": "bash -lc 'sleep 60; gh run view 40842884706 --repo asysu/apk --json status,conclusion,jobs,url --jq \"{status, conclusion, url, steps: [.jobs[0].steps[] | {name, status, conclusion}]}\"'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Download built APK artifact",
+			"type": "shell",
+			"command": "gh run download 40842884706 --repo asysu/apk --name imtahan-hazirligi-apk --dir site/downloads",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
